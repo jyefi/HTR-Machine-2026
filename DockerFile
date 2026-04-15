@@ -1,0 +1,152 @@
+FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ======================
+# DEPENDENCIAS BASE
+# ======================
+RUN apt-get update && apt-get install -y \
+    vim \
+    build-essential \
+    git \
+    wget \ 
+    curl \
+    automake \
+    autoconf \
+    libtool \
+    g++ \
+    gawk \
+    sox \
+    gfortran \
+    subversion \
+    cmake \
+    pkg-config \
+    yasm \
+    libtiff-dev \
+    libjpeg-dev \
+    libavcodec-dev \
+    libopencv-dev \
+    liblog4cxx-dev \
+    libavformat-dev \
+    libswscale-dev \
+    libv4l-dev \
+    v4l-utils \
+    ffmpeg \
+    libeigen3-dev \
+    libboost-all-dev \
+    imagemagick \
+    parallel \
+    xmlstarlet \
+    unzip \
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-numpy \
+    zlib1g-dev \
+    libatlas-base-dev \
+    libopenblas-dev \
+    libatlas-base-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# ======================
+# DIRECTORIO BASE
+# ======================
+RUN mkdir /pidocs-soft
+WORKDIR /pidocs-soft
+
+
+# ======================
+# KALDI (OPTIMIZADO)
+# ======================
+WORKDIR /pidocs-soft
+RUN git clone --depth 1 https://github.com/kaldi-asr/kaldi.git
+
+WORKDIR /pidocs-soft/kaldi/tools
+
+# Verificar dependencias
+RUN ./extras/check_dependencies.sh
+
+# Instalar OpenBLAS y verificar resultado
+RUN ./extras/install_openblas.sh && \
+    test -d /pidocs-soft/kaldi/tools/OpenBLAS/install || \
+    (echo "ERROR: OpenBLAS install dir not found" && exit 1)
+
+# Compilar tools con paralelismo limitado para evitar OOM
+# Se compila en pasos separados para aprovechar caché de Docker
+RUN make -j4 openfst
+
+RUN make -j4
+
+# Configurar y compilar src
+WORKDIR /pidocs-soft/kaldi/src
+
+RUN ./configure \
+        --shared \
+        --mathlib=OPENBLAS \
+        --openblas-root=/pidocs-soft/kaldi/tools/OpenBLAS/install
+
+# Separar depend y make para mejor caché y menor presión de memoria
+RUN make -j4 depend
+
+RUN make -j4
+
+# ======================
+# CONDA (Versión Moderna)
+# ======================
+WORKDIR /pidocs-soft
+# Usamos el instalador de Miniconda para Linux de 64 bits (siempre trae la versión más compatible)
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O conda.sh && \
+    bash conda.sh -b -p /opt/conda && \
+    rm conda.sh
+
+ENV PATH="/opt/conda/bin:$PATH"
+
+# IMPORTANTE: Cambiamos el shell ANTES de crear el entorno
+SHELL ["/bin/bash", "-c"]
+
+# Inicializar conda para bash
+RUN conda init bash
+
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
+# ======================
+# ENTORNO PYLAIA
+# ======================
+COPY build-resource/pylaia.yml /pidocs-soft/
+
+# Eliminamos el 'conda update' ya que el instalador 'latest' ya viene actualizado.
+# Si el error persiste aquí, el problema está DENTRO del archivo pylaia.yml
+RUN conda env create -f /pidocs-soft/pylaia.yml && \
+    conda clean -afy
+
+RUN echo "conda activate pylaia" >> ~/.bashrc
+# ======================
+# PYLAIA
+# ======================
+RUN git clone https://github.com/jpuigcerver/PyLaia
+
+COPY build-resource/pylaia-htr-netout-rgb /pidocs-soft/PyLaia/
+
+# ======================
+# LINE EXTRACTOR
+# ======================
+RUN git clone https://github.com/PRHLT/pageLineExtractor.git
+
+WORKDIR /pidocs-soft/pageLineExtractor
+
+RUN ln -s /usr/lib/x86_64-linux-gnu/pkgconfig/opencv4.pc /usr/lib/x86_64-linux-gnu/pkgconfig/opencv.pc && \
+    ln -s /usr/include/opencv4/opencv2 /usr/include/opencv2
+RUN make all
+
+# ======================
+# SHELL CONFIG
+# ======================
+SHELL ["/bin/bash", "-c"]
+
+# ======================
+# WORKDIR FINAL
+# ======================
+WORKDIR /work-dir
+
+CMD ["bash"]

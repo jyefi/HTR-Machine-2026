@@ -1,0 +1,23 @@
+name: pylaia
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.8
+  - pytorch=1.13.1
+  - torchvision=0.14.1
+  - pytorch-cuda=11.8
+  - numpy=1.23
+  - pillow
+  - ninja
+  - pip
+  - pip:
+      - editdistance==0.5.3
+      - future==0.17.1
+      - natsort==6.0.0
+      - numpy==1.23
+      - parameterized==0.7.0
+      - scipy
+      - tqdm
+      - typing-extensions
