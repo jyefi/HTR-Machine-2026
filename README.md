@@ -3,7 +3,7 @@
  Docker image that isolates and automates the use of PyLaia and Kaldi toolkits for HTR.  
 
  ## IMPORTANT
- This updated version of the original project contains a lot of serious issues. In other words, this Docker has been designed as an optimized virtual machines, rather than being optimised to be used as a docker image.
+This updated version of the original project contains a lot of serious issues. In other words, this Docker has been designed as an normal virtual machine, rather than being optimized to be used as a docker image.
 
 ## Requirements
 
