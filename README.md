@@ -27,9 +27,9 @@ the following comand in order to download and install the bleeding edge version 
 
 1. In order to use the image (and launch a container)  you will need to first download (fastest) or build the container. 
 
-* To download [vbosch/htr-machine](https://hub.docker.com/r/vbosch/htr-machine) or pull the current version of the hub image simply execute the following command:
+* To download [jyefi/htr-machine-2026](https://hub.docker.com/r/jyefi/HTR-machine-2026) or pull the current version of the hub image simply execute the following command:
 	```
-	sudo docker pull vbosch/htr-machine
+	sudo docker pull jyefi/htr-machine-2026
 	```
 * To build the container clone this repository, go inside the downloaded repository and execute the following command: 
 	```
